@@ -1,8 +1,9 @@
 import asyncio
+from multiprocessing import Process, Pool
 import logging
-import sys
+import sys, os
 from async_func import aiohttp_html_to_rabbit, create_amqp_connection
-from sync_func import get_custum_url, get_product_urls, make_directory_tree
+from sync_func import get_custum_url, get_product_urls, make_directory_tree, consume_parse_save
 
 
 # define variables ?PAGEN_1=2
@@ -14,23 +15,40 @@ tasks_save_pics = []
 tasks_save_txts = []
 
 
-async def main():
+async def async_main():
     # Get products urls
     await asyncio.gather(*[get_product_urls(url_section) for url_section in get_custum_url()])
     # Make products directories
     func_list = [make_directory_tree(path) for path in path_product_list]
     for func in func_list: func()
     # Sending to Rabbit HTMLs
-    await asyncio.gather(*[aiohttp_html_to_rabbit(url_product) for url_product in url_product_list])
-
     amqp_connection = create_amqp_connection()
+    await asyncio.gather(*[aiohttp_html_to_rabbit(url_product, path_product, amqp_connection) for url_product, path_product in zip(url_product_list, path_product_list)])
 
     # Здеся процессы кансамят хтмлки, парсят их и сохраняют в джисон
+
+def main():
+    # start workers in background
+    amqp_host = os.getenv('AMQP_HOST')
+    amqp_port = os.getenv('AMQP_PORT')
+    amqp_user = os.getenv('AMQP_USER')
+    amqp_pass = os.getenv('AMQP_PASSWORD')
+    amqp_address = f'amqp://{amqp_user}:{amqp_pass}@{amqp_host}:{amqp_port}'
+    workers = []
+    num_workers = 4
+    for i in range(num_workers):
+        worker = Process(target=consume_parse_save, args=[amqp_address])
+        workers.append(worker)
+        worker.start()
+
+    # start async loop
+    asyncio.run(async_main())
 
 
 
 if __name__ == '__main__':
     """Algorithm.
+    Logger
     Creating Processes
     Async Part:
     Read product category url from file
@@ -49,3 +67,4 @@ if __name__ == '__main__':
     console.setFormatter(formatter)
     console.setLevel(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG, handlers=[console])
+    main()

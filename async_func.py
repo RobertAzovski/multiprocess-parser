@@ -34,18 +34,18 @@ async def fetch(client, url_product):
         assert resp.status == 200
         return await resp.text()
 
-async def aiohttp_html_to_rabbit(url_product):
+async def aiohttp_html_to_rabbit(url_product, path_product, amqp_connection):
     """Creating aiohttp session, calls fetch html func and calls pika produce"""
     async with aiohttp.ClientSession() as client:
-        html = await fetch(client, url_product)
-        await aio_pika_produce_message(html)
+        message = f'{path_product}:{await fetch(client, url_product)}'
+        await aio_pika_produce_message(message, amqp_connection)
 
 
 # AIO_PIKA produce code
-async def aio_pika_produce_message(html, amqp_connection, queue_name):
+async def aio_pika_produce_message(html, amqp_connection):
     """Receiving html and sending to a queue"""
     async with amqp_connection.channel() as channel:
         await channel.default_exchange.publish(
             aio_pika.Message(body=html),
-            routing_key=queue_name,
+            routing_key='html_data',
         )

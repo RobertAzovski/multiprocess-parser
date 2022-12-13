@@ -81,28 +81,28 @@ def get_product_urls(url_section, path_product_list, url_product_list, BASE_URL)
             pass
 
 
-# AIO_PIKA consume code
-async def aio_pika_consume(amqp_connection) -> str:
-    """Returns htmls from RabbitMQ queue"""
-    queue_name = "html_data"
+# PIKA consume code
+def consume_parse_save(amqp_address):
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_address))
+    channel = connection.channel()
 
-    async with amqp_connection.channel() as channel:
-        # Will take no more than 10 messages in advance
-        await channel.set_qos(prefetch_count=10)
+    channel.queue_declare(queue='html_data')
 
-        # Declaring queue
-        queue = await channel.declare_queue(queue_name)
+    def callback(ch, method, properties, body):
+        message = body
+        get_product_page_data(message)
 
-        async with queue.iterator() as queue_iter:
-            async for message in queue_iter:
-                async with message.process():
-                    return message.body
+    channel.basic_consume(queue='html_data', on_message_callback=callback, auto_ack=True)
+
+    print(' [*] Waiting for messages. To exit press CTRL+C')
+    channel.start_consuming()
 
 
-async def get_product_page_data(amqp_connection, path_product, i):
+def get_product_page_data(message):
+    path_product = message.split(':')[0]
+    html = message.split(':')[1]
     product = Product()
     nbsp = u'\xa0'
-    html = aio_pika_consume(amqp_connection=amqp_connection)
     logging.debug('Consuming html from rabbit')
     soup = BeautifulSoup(html, 'lxml')
     logging.debug('Actually do a parsing')
@@ -123,9 +123,9 @@ async def get_product_page_data(amqp_connection, path_product, i):
                 product.variations = f'{title} - {var_list}'
             else:
                 product.variations = 'Вариации отсутствуют'
-            logging.debug(f'Task {i} - {product.name} parsed')
+            logging.debug(f'{product.name} parsed')
         finally:
-            await save_json(path_product, product)
-            logging.debug(f'JSON for Task {i} - {product.name} has been saved')
+            save_json(path_product, product)
+            logging.debug(f'JSON for - {product.name} has been saved')
 
 
