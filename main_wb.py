@@ -37,14 +37,16 @@ def main():
     amqp_user = os.getenv('AMQP_USER')
     amqp_pass = os.getenv('AMQP_PASSWORD')
     amqp_address = f'amqp://{amqp_user}:{amqp_pass}@{amqp_host}:{amqp_port}'
-    # start async loop
-    asyncio.run(async_main())
+
     workers = []
     num_workers = 4
     for i in range(num_workers):
         worker = Process(target=consume_parse_save, args=[amqp_address])
         workers.append(worker)
         worker.start()
+
+    # start async loop
+    asyncio.run(async_main())
 
 
 
