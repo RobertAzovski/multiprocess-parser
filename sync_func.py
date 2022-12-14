@@ -8,15 +8,15 @@ from urllib.request import urlopen
 from dataclasses import dataclass
 
 
-@dataclass
 class Product():
-    artikul: str
-    name: str
-    price: str
-    photos_path: str
-    description: str
-    ops: str
-    variations: str
+    def __init__(self) -> None:
+        self.artikul = None
+        self.name = None
+        self.price = None
+        self.photos_path = None
+        self.description = None
+        self.ops = None
+        self.variations = None
 
     def toJSON(self):
         return json.dumps(self, default=lambda o: o.__dict__, 
@@ -89,7 +89,7 @@ def consume_parse_save(amqp_address):
     channel.queue_declare(queue='html_data')
 
     def callback(ch, method, properties, body):
-        message = body
+        message = body.decode()
         logging.info('Starting parsing from HTML')
         get_product_page_data(message)
 
