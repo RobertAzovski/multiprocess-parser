@@ -23,8 +23,8 @@ class Product():
             sort_keys=True, indent=4)
 
 
-def make_directory_tree(url_product):
-    Path(create_path(f'{url_product}/f/')).mkdir(parents=True, exist_ok=True)
+def make_directory_tree(url_product, BASE_URL, BASE_PATH):
+    Path(create_path(f'{url_product}/f/', BASE_URL, BASE_PATH)).mkdir(parents=True, exist_ok=True)
 
 
 def save_json(path_product, product):
@@ -83,7 +83,7 @@ def get_product_urls(url_section, path_product_list, url_product_list, BASE_URL)
 
 # PIKA consume code
 def consume_parse_save(amqp_address):
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_address))
+    connection = pika.BlockingConnection(pika.URLParameters(amqp_address))
     channel = connection.channel()
 
     channel.queue_declare(queue='html_data')

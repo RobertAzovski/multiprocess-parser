@@ -17,12 +17,15 @@ tasks_save_txts = []
 
 async def async_main():
     # Get products urls
-    await asyncio.gather(*[get_product_urls(url_section) for url_section in get_custum_url()])
+    for url_section in get_custum_url():
+        get_product_urls(url_section, path_product_list, url_product_list, BASE_URL)
+    # await asyncio.gather(*[get_product_urls(url_section, path_product_list, url_product_list, BASE_URL) for url_section in get_custum_url()])
     # Make products directories
-    func_list = [make_directory_tree(path) for path in path_product_list]
-    for func in func_list: func()
+    # func_list = [make_directory_tree(path, BASE_URL, BASE_PATH) for path in path_product_list]
+    for path in path_product_list: make_directory_tree(path, BASE_URL, BASE_PATH)
+    # for func in func_list: func()
     # Sending to Rabbit HTMLs
-    amqp_connection = create_amqp_connection()
+    amqp_connection = await create_amqp_connection()
     await asyncio.gather(*[aiohttp_html_to_rabbit(url_product, path_product, amqp_connection) for url_product, path_product in zip(url_product_list, path_product_list)])
 
     # Здеся процессы кансамят хтмлки, парсят их и сохраняют в джисон
@@ -34,15 +37,14 @@ def main():
     amqp_user = os.getenv('AMQP_USER')
     amqp_pass = os.getenv('AMQP_PASSWORD')
     amqp_address = f'amqp://{amqp_user}:{amqp_pass}@{amqp_host}:{amqp_port}'
+    # start async loop
+    asyncio.run(async_main())
     workers = []
     num_workers = 4
     for i in range(num_workers):
         worker = Process(target=consume_parse_save, args=[amqp_address])
         workers.append(worker)
         worker.start()
-
-    # start async loop
-    asyncio.run(async_main())
 
 
 
