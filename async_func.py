@@ -46,6 +46,6 @@ async def aio_pika_produce_message(html, amqp_connection):
     """Receiving html and sending to a queue"""
     async with amqp_connection.channel() as channel:
         await channel.default_exchange.publish(
-            aio_pika.Message(body=html),
+            aio_pika.Message(body=html.encode()),
             routing_key='html_data',
         )

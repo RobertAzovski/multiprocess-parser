@@ -1,4 +1,4 @@
-import asyncio
+import asyncio, time
 from multiprocessing import Process, Pool
 import logging
 import sys, os
@@ -51,6 +51,7 @@ def main():
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     """Algorithm.
     Logger
     Creating Processes
@@ -70,5 +71,7 @@ if __name__ == '__main__':
     console = logging.StreamHandler(stream=sys.stdout)
     console.setFormatter(formatter)
     console.setLevel(logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG, handlers=[console])
+    logging.basicConfig(level=logging.INFO, handlers=[console])
     main()
+    execution_time = round(time.time() - start_time, 3)
+    print(f'Время выполнения программы: {execution_time} с.')

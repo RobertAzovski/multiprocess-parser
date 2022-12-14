@@ -90,6 +90,7 @@ def consume_parse_save(amqp_address):
 
     def callback(ch, method, properties, body):
         message = body
+        logging.info('Starting parsing from HTML')
         get_product_page_data(message)
 
     channel.basic_consume(queue='html_data', on_message_callback=callback, auto_ack=True)
@@ -123,9 +124,9 @@ def get_product_page_data(message):
                 product.variations = f'{title} - {var_list}'
             else:
                 product.variations = 'Вариации отсутствуют'
-            logging.debug(f'{product.name} parsed')
+            logging.info(f'{product.name} parsed')
         finally:
             save_json(path_product, product)
-            logging.debug(f'JSON for - {product.name} has been saved')
+            logging.info(f'JSON for - {product.name} has been saved')
 
 
