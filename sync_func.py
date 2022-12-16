@@ -90,6 +90,8 @@ def consume_parse_save(amqp_address, BASE_URL, BASE_PATH):
 
     def callback(ch, method, properties, body):
         message = body.decode()
+        if message == 'STOP':
+            sys.exit()
         logging.info('Starting parsing from HTML')
         get_product_page_data(message, BASE_URL, BASE_PATH)
 

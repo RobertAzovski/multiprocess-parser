@@ -1,4 +1,4 @@
-import aiohttp, aio_pika
+import aiohttp, aio_pika, asyncio
 import os
 from dotenv import load_dotenv
 
@@ -48,3 +48,21 @@ async def aio_pika_produce_message(html, amqp_connection):
             aio_pika.Message(body=html.encode()),
             routing_key='html_data',
         )
+
+async def queue_amqp_message(message, processes_count, amqp_address):
+    amqp_connection = await aio_pika.connect_robust(amqp_address)
+    """Receiving html and sending to a queue"""
+    async with amqp_connection.channel() as channel:
+        async for i in async_range(processes_count):
+            task = asyncio.create_task(
+                channel.default_exchange.publish(
+                    aio_pika.Message(body=message.encode()),
+                    routing_key='html_data',
+                )
+            )
+            await task
+
+async def async_range(count):
+    for i in range(count):
+        yield(i)
+        await asyncio.sleep(0.0)

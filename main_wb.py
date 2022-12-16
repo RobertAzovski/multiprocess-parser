@@ -2,7 +2,7 @@ import asyncio, time
 from multiprocessing import Process, Pool
 import logging
 import sys, os
-from async_func import aiohttp_html_to_rabbit, create_amqp_connection
+from async_func import aiohttp_html_to_rabbit, create_amqp_connection, queue_amqp_message
 from sync_func import get_custum_url, get_product_urls, make_directory_tree, consume_parse_save
 
 
@@ -47,6 +47,10 @@ def main():
 
     # start async loop
     asyncio.run(async_main())
+    # stop workers
+    asyncio.run(queue_amqp_message('STOP', num_workers, amqp_address))
+    for worker in workers:
+        worker.join()
 
 
 
