@@ -1,6 +1,6 @@
 import json
 from bs4 import BeautifulSoup
-import winshell, os, logging
+import winshell, os, logging, sys
 import time
 import pika
 from pathlib import Path
@@ -20,15 +20,15 @@ class Product():
 
     def toJSON(self):
         return json.dumps(self, default=lambda o: o.__dict__, 
-            sort_keys=True, indent=4)
+            sort_keys=True, indent=4, ensure_ascii=False)
 
 
 def make_directory_tree(url_product, BASE_URL, BASE_PATH):
     Path(create_path(f'{url_product}/f/', BASE_URL, BASE_PATH)).mkdir(parents=True, exist_ok=True)
 
 
-def save_json(path_product, product):
-    with open(create_path(f'{path_product}/{product.name}.json'), 'w', encoding='utf-8') as file:
+def save_json(path_product, product, BASE_URL, BASE_PATH):
+    with open(create_path(f'{path_product}/{product.name}.json', BASE_URL, BASE_PATH), 'w', encoding='utf-8') as file:
                 file.write(product.toJSON())
 
 
@@ -82,7 +82,7 @@ def get_product_urls(url_section, path_product_list, url_product_list, BASE_URL)
 
 
 # PIKA consume code
-def consume_parse_save(amqp_address):
+def consume_parse_save(amqp_address, BASE_URL, BASE_PATH):
     connection = pika.BlockingConnection(pika.URLParameters(amqp_address))
     channel = connection.channel()
 
@@ -91,7 +91,7 @@ def consume_parse_save(amqp_address):
     def callback(ch, method, properties, body):
         message = body.decode()
         logging.info('Starting parsing from HTML')
-        get_product_page_data(message)
+        get_product_page_data(message, BASE_URL, BASE_PATH)
 
     channel.basic_consume(queue='html_data', on_message_callback=callback, auto_ack=True)
 
@@ -99,20 +99,24 @@ def consume_parse_save(amqp_address):
     channel.start_consuming()
 
 
-def get_product_page_data(message):
-    path_product = message.split(':')[0]
-    html = message.split(':')[1]
+def get_product_page_data(message, BASE_URL, BASE_PATH):
+    html_splited = message.split(':', maxsplit=1)
+    path_product = html_splited[0]
+    html = html_splited[1]
     product = Product()
     nbsp = u'\xa0'
-    logging.debug('Consuming html from rabbit')
+    logging.info('Consuming html from rabbit')
     soup = BeautifulSoup(html, 'lxml')
-    logging.debug('Actually do a parsing')
+    logging.info('Actually do a parsing')
     if soup.contents:
         try:
             product.artikul = soup.find('div', {'class': 'articul_code'}).find('span').string
             product.name = soup.find('div', {'class': 'articul_code'}).parent.find('h1').text.split(',')[0].replace('*', 'x')
-            product.price = soup.find('div', {'class': 'product-item-detail-price-current'}).contents[0].replace(nbsp, '')
-            product.photos_path = create_path(f'{path_product}/f/')
+            if len(soup.find('div', {'class': 'product-item-detail-price-current'}).contents) >= 1:
+                product.price = soup.find('div', {'class': 'product-item-detail-price-current'}).contents[0].replace(nbsp, '')
+            else:
+                product.price = 'Цена отсутствует'
+            product.photos_path = create_path(f'{path_product}/f/', BASE_URL, BASE_PATH)
             if soup.find('div', {'data-value': 'description'}) is not None and soup.find('div', {'data-value': 'description'}).find('p'):
                 product.description = soup.find('div', {'data-value': 'description'}).find('p').string
             else:
@@ -125,8 +129,13 @@ def get_product_page_data(message):
             else:
                 product.variations = 'Вариации отсутствуют'
             logging.info(f'{product.name} parsed')
+        except AttributeError as err:
+            with open(f'{product.name}.txt', 'w', encoding='utf-8') as f:
+                f.write(html)
+            logging.error(err)
+            sys.exit()
         finally:
-            save_json(path_product, product)
+            save_json(path_product, product, BASE_URL, BASE_PATH)
             logging.info(f'JSON for - {product.name} has been saved')
 
 

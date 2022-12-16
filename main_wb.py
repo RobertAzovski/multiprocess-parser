@@ -41,7 +41,7 @@ def main():
     workers = []
     num_workers = 4
     for i in range(num_workers):
-        worker = Process(target=consume_parse_save, args=[amqp_address])
+        worker = Process(target=consume_parse_save, args=[amqp_address, BASE_URL, BASE_PATH])
         workers.append(worker)
         worker.start()
 

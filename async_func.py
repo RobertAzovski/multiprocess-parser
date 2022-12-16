@@ -1,6 +1,5 @@
 import aiohttp, aio_pika
 import os
-from sync_func import create_path
 from dotenv import load_dotenv
 
 load_dotenv()
